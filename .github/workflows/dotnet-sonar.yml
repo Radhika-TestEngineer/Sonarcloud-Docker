@@ -20,21 +20,23 @@ jobs:
       pull-requests: write
 
     steps:
+      # 🧩 Checkout repository
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
+      # 🧩 Setup .NET
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
+      # 🧩 Install SonarScanner tool
       - name: Install tools
-        run: |
-          dotnet tool install --global dotnet-sonarscanner
-          dotnet tool install --global coverlet.console
+        run: dotnet tool install --global dotnet-sonarscanner
 
+      # 🧩 Start SonarCloud analysis
       - name: SonarCloud – Begin
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
@@ -44,60 +46,37 @@ jobs:
             /o:"radhika-testengineer" \
             /d:sonar.host.url="https://sonarcloud.io" \
             /d:sonar.login="${SONAR_TOKEN}" \
-            /d:sonar.cs.opencover.reportsPaths="**/coverage.opencover.xml"
+            /d:sonar.cs.opencover.reportsPaths="**/coverage.opencover.xml" \
+            /d:sonar.coverageReportPaths="**/coverage.cobertura.xml"
 
-      # --------------------------------------------------------------
-      # CHANGED: Build ONLY the application, NOT the test projects
-      # --------------------------------------------------------------
-      - name: Restore & Build application (skip tests)
+      # 🧩 Restore & Build (includes app + tests)
+      - name: Restore and Build solution
         run: |
           dotnet restore
+          dotnet build --no-restore -c Release
 
-          # Collect all *Tests.csproj paths, semicolon-separated
-          EXCLUDE=$(find . -type f -name "*Tests.csproj" -not -path "*/bin/*" -not -path "*/obj/*" -printf '%p;' | sed 's/;$//')
-
-          dotnet build --no-restore -c Release \
-            /p:ExcludeProjectsFromBuild="$EXCLUDE"
-
-      # --------------------------------------------------------------
-      # Test step – unchanged (keeps --no-build)
-      # --------------------------------------------------------------
-      - name: Run tests with Coverlet
-        shell: bash
+      # 🧩 Run NUnit tests and collect coverage
+      - name: Run tests and collect coverage
         run: |
-          echo "🔍 Searching for test projects..."
-          TEST_PROJECTS=$(find . -type f -name "*Tests.csproj" -not -path "*/bin/*" -not -path "*/obj/*")
+          echo "🧪 Running NUnit tests with coverage..."
+          dotnet test --collect:"XPlat Code Coverage" --results-directory ./TestResults --logger "trx"
+          echo "✅ Tests completed."
+          echo "🔍 Checking for coverage files..."
+          find . -name "coverage.cobertura.xml" -exec ls -lh {} \;
 
-          if [ -z "$TEST_PROJECTS" ]; then
-            echo "⚠️ No test projects found!"
-            exit 1
-          fi
-
-          for proj in $TEST_PROJECTS; do
-            echo "🧪 Running tests for: $proj"
-            dotnet restore "$proj"
-            dotnet build "$proj" -c Release
-
-            dotnet test "$proj" -c Release --no-restore \
-              /p:CollectCoverage=true \
-              /p:CoverletOutput=./TestResults/coverage/ \
-              /p:CoverletOutputFormat=opencover
-           done
-
-          echo "✅ Test execution completed."
-          find . -type f -name "coverage.opencover.xml"
-
-      - name: Verify coverage file
+      # 🧩 Verify coverage file exists
+      - name: Verify coverage report
         run: |
-          echo "Checking for coverage report..."
-          find . -name "coverage.opencover.xml" || (echo "Coverage report missing!" && exit 1)
+          echo "📂 Checking for coverage report..."
+          find . -name "coverage.cobertura.xml" || (echo "❌ Coverage file not found!" && exit 1)
 
+      # 🧩 End SonarCloud analysis
       - name: SonarCloud – End
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        run: |
-          dotnet sonarscanner end /d:sonar.login="${SONAR_TOKEN}"
+        run: dotnet sonarscanner end /d:sonar.login="${SONAR_TOKEN}"
 
+      # 🧩 SonarCloud Quality Gate (optional)
       - name: SonarCloud Quality Gate
         if: success()
         uses: sonarsource/sonarqube-quality-gate-action@master
@@ -106,12 +85,15 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
-      - name: Set up QEMU (for multi-arch)
+      # 🧩 Setup QEMU for multi-platform Docker builds
+      - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
+      # 🧩 Setup Docker Buildx
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      # 🧩 Login to GitHub Container Registry (GHCR)
       - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
@@ -119,6 +101,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # 🧩 Docker meta info (tags, labels)
       - name: Docker meta
         id: meta
         uses: docker/metadata-action@v5
@@ -128,6 +111,7 @@ jobs:
             type=raw,value=latest,enable={{is_default_branch}}
             type=sha,prefix=,format=short
 
+      # 🧩 Build & push Docker image to GHCR
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
         with:
@@ -140,5 +124,6 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      # 🧩 Display image digest
       - name: Show image digest
-        run: echo "Image pushed → ${{ steps.meta.outputs.tags }} @ ${{ steps.meta.outputs.digest }}"
+        run: echo "📦 Image pushed → ${{ steps.meta.outputs.tags }} @ ${{ steps.meta.outputs.digest }}"

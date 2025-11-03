@@ -61,7 +61,7 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
           dotnet sonarscanner begin \
-            /k:"Radhika-TestEngineer_Dotnet-Sonarcloud" \
+            /k:"Radhika-TestEngineer_Sonarcloud-Docker" \
             /o:"radhika-testengineer" \
             /d:sonar.host.url="https://sonarcloud.io" \
             /d:sonar.login="${SONAR_TOKEN}" \
@@ -88,14 +88,19 @@ jobs:
 
           for proj in $TEST_PROJECTS; do
             echo "Running tests for: $proj"
-            dotnet test "$proj" -c Release --no-build \
+            mkdir -p "$(dirname "$proj")/TestResults/coverage"
+
+            dotnet test "$proj" \
+              --configuration Release \
+              --no-build \
+              --no-restore \
               /p:CollectCoverage=true \
-              /p:CoverletOutput=./TestResults/coverage/ \
-              /p:CoverletOutputFormat=opencover
+              /p:CoverletOutputFormat=opencover \
+              /p:CoverletOutput="$(dirname "$proj")/TestResults/coverage/"
           done
 
           echo "Test execution completed."
-          find . -type f -name "coverage.opencover.xml" -ls
+          find . -name "coverage.opencover.xml" -ls
 
       # --------------------------------------------------------------
       # 6. Verify coverage file exists (fail fast)

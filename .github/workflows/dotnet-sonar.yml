@@ -62,11 +62,11 @@ jobs:
       # --------------------------------------------------------------
       # Test step – unchanged (keeps --no-build)
       # --------------------------------------------------------------
-       - name: Run tests with Coverlet
-         shell: bash
-         run: |
-           echo "🔍 Searching for test projects..."
-           TEST_PROJECTS=$(find . -type f -name "*Tests.csproj" -not -path "*/bin/*" -not -path "*/obj/*")
+     - name: Run tests with Coverlet
+       shell: bash
+       run: |
+         echo "🔍 Searching for test projects..."
+         TEST_PROJECTS=$(find . -type f -name "*Tests.csproj" -not -path "*/bin/*" -not -path "*/obj/*")
 
           if [ -z "$TEST_PROJECTS" ]; then
             echo "⚠️ No test projects found!"
@@ -82,10 +82,11 @@ jobs:
               /p:CollectCoverage=true \
               /p:CoverletOutput=./TestResults/coverage/ \
               /p:CoverletOutputFormat=opencover
-          done
+           done
 
           echo "✅ Test execution completed."
           find . -type f -name "coverage.opencover.xml"
+
       - name: Verify coverage file
         run: |
           echo "Checking for coverage report..."

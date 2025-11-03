@@ -62,33 +62,30 @@ jobs:
       # --------------------------------------------------------------
       # Test step – unchanged (keeps --no-build)
       # --------------------------------------------------------------
-      - name: Run tests with Coverlet
+       - name: Run tests with Coverlet
         shell: bash
         run: |
-          echo "Searching for test projects..."
+          echo "🔍 Searching for test projects..."
           TEST_PROJECTS=$(find . -type f -name "*Tests.csproj" -not -path "*/bin/*" -not -path "*/obj/*")
 
           if [ -z "$TEST_PROJECTS" ]; then
-            echo "No test projects found – skipping tests."
+            echo "⚠️ No test projects found!"
             exit 0
           fi
 
           for proj in $TEST_PROJECTS; do
-            echo "Running tests for: $proj"
-            mkdir -p "$(dirname "$proj")/TestResults/coverage"
+            echo "🧪 Running tests for: $proj"
+            dotnet restore "$proj"
+            dotnet build "$proj" -c Release
 
-            dotnet test "$proj" \
-              --configuration Release \
-              --no-build \
-              --no-restore \
+            dotnet test "$proj" -c Release --no-restore \
               /p:CollectCoverage=true \
-              /p:CoverletOutputFormat=opencover \
-              /p:CoverletOutput="$(dirname "$proj")/TestResults/coverage/"
+              /p:CoverletOutput=./TestResults/coverage/ \
+              /p:CoverletOutputFormat=opencover
           done
 
-          echo "Test execution completed."
-          find . -name "coverage.opencover.xml" -ls
-
+          echo "✅ Test execution completed."
+          find . -type f -name "coverage.opencover.xml"
       - name: Verify coverage file
         run: |
           echo "Checking for coverage report..."

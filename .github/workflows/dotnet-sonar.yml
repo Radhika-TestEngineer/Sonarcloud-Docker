@@ -70,7 +70,7 @@ jobs:
 
           if [ -z "$TEST_PROJECTS" ]; then
             echo "⚠️ No test projects found!"
-            exit 0
+            exit 1
           fi
 
           for proj in $TEST_PROJECTS; do

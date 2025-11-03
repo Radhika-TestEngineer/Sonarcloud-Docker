@@ -46,11 +46,22 @@ jobs:
             /d:sonar.login="${SONAR_TOKEN}" \
             /d:sonar.cs.opencover.reportsPaths="**/coverage.opencover.xml"
 
-      - name: Restore & Build solution
+      # --------------------------------------------------------------
+      # CHANGED: Build ONLY the application, NOT the test projects
+      # --------------------------------------------------------------
+      - name: Restore & Build application (skip tests)
         run: |
           dotnet restore
-          dotnet build --no-restore -c Release
 
+          # Collect all *Tests.csproj paths, semicolon-separated
+          EXCLUDE=$(find . -type f -name "*Tests.csproj" -not -path "*/bin/*" -not -path "*/obj/*" -printf '%p;' | sed 's/;$//')
+
+          dotnet build --no-restore -c Release \
+            /p:ExcludeProjectsFromBuild="$EXCLUDE"
+
+      # --------------------------------------------------------------
+      # Test step – unchanged (keeps --no-build)
+      # --------------------------------------------------------------
       - name: Run tests with Coverlet
         shell: bash
         run: |

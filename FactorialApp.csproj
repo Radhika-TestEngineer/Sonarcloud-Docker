@@ -9,6 +9,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+     <PackageReference Include="coverlet.collector" Version="6.0.0" />
     <Compile Remove="tests\**\*.cs" />
   </ItemGroup>
 
